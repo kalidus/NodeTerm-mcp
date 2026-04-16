@@ -1,0 +1,27 @@
+{
+  "name": "nodeterm-ssh-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server to interact with Nodeterm SSH connections",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "nodeterm-ssh-mcp": "./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tu-usuario/nodeterm-ssh-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "ssh",
+    "nodeterm",
+    "gemini-cli",
+    "claude-desktop"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "ssh2": "^1.17.0"
+  }
+}
