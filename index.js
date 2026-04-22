@@ -110,6 +110,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "get_ssh_connection_password",
+        description: "Retrieves the password for a specific SSH connection in Nodeterm.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            connectionName: {
+              type: "string",
+              description: "The name or ID of the connection in Nodeterm (e.g. 'Kepler').",
+            },
+          },
+          required: ["connectionName"],
+        },
+      },
+      {
         name: "run_ssh_command",
         description: "Executes a command on a remote host using an existing Nodeterm connection.",
         inputSchema: {
@@ -149,6 +163,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     
     return {
       content: [{ type: "text", text: JSON.stringify(list, null, 2) }],
+    };
+  }
+
+  if (name === "get_ssh_connection_password") {
+    const { connectionName } = args;
+    const connections = getConnections();
+    
+    // Find connection by Name or ID
+    const conn = connections.find(c => 
+      c.name === connectionName || 
+      c.id === connectionName || 
+      (c.name && c.name.toLowerCase() === connectionName.toLowerCase())
+    );
+
+    if (!conn) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: `Connection '${connectionName}' not found in Nodeterm.` }],
+      };
+    }
+
+    if (!conn.password) {
+      return {
+        content: [{ type: "text", text: `No password stored for connection '${connectionName}'.` }],
+      };
+    }
+
+    return {
+      content: [{ type: "text", text: conn.password }],
     };
   }
 
