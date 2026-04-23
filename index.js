@@ -18,7 +18,7 @@ const NODETERM_DATA_PATH = path.join(os.homedir(), ".nodeterm", "app-data.json")
  */
 const server = new Server(
   {
-    name: "nodeterm-ssh-mcp",
+    name: "nodeterm-mcp",
     version: "1.0.0",
   },
   {
@@ -29,8 +29,8 @@ const server = new Server(
 );
 
 /**
- * Loads and filters SSH connections from Nodeterm data file.
- * @returns {Array} List of unique SSH connections
+ * Loads and filters connections from Nodeterm data file.
+ * @returns {Array} List of unique connections
  */
 function getConnections() {
   try {
@@ -43,13 +43,13 @@ function getConnections() {
     const favorites = JSON.parse(data.nodeterm_favorite_connections || "[]");
     const history = JSON.parse(data.nodeterm_connection_history || "[]");
     
-    // Combine and remove duplicates by ID, ensuring they are SSH type
+    // Combine and remove duplicates by ID
     const connections = [...favorites, ...history];
     const uniqueConnections = [];
     const seenIds = new Set();
     
     for (const conn of connections) {
-      if (!seenIds.has(conn.id) && conn.type === "ssh") {
+      if (!seenIds.has(conn.id)) {
         uniqueConnections.push(conn);
         seenIds.add(conn.id);
       }
@@ -59,6 +59,24 @@ function getConnections() {
   } catch (error) {
     console.error("Error reading Nodeterm data:", error.message);
     return [];
+  }
+}
+
+/**
+ * Gets local terminal configuration.
+ */
+function getLocalTerminalInfo() {
+  try {
+    if (!fs.existsSync(NODETERM_DATA_PATH)) return null;
+    const data = JSON.parse(fs.readFileSync(NODETERM_DATA_PATH, "utf8"));
+    return {
+      defaultTerminal: data.nodeterm_default_local_terminal,
+      workspace: JSON.parse(data.homeTab_localTerminalWorkspace || "{}"),
+      fontFamily: data.basicapp_local_terminal_font_family,
+      fontSize: data.basicapp_local_terminal_font_size
+    };
+  } catch (error) {
+    return null;
   }
 }
 
@@ -102,22 +120,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "list_ssh_connections",
-        description: "Lists all SSH connections available in Nodeterm.",
+        name: "list_connections",
+        description: "Lists all connections available in Nodeterm (SSH, RDP, SFTP, etc.).",
         inputSchema: {
           type: "object",
-          properties: {},
+          properties: {
+            type: {
+              type: "string",
+              description: "Optional filter by type (e.g. 'ssh', 'rdp', 'sftp').",
+            },
+          },
         },
       },
       {
-        name: "get_ssh_connection_password",
-        description: "Retrieves the password for a specific SSH connection in Nodeterm.",
+        name: "get_connection_details",
+        description: "Retrieves full details for a specific connection in Nodeterm.",
         inputSchema: {
           type: "object",
           properties: {
             connectionName: {
               type: "string",
-              description: "The name or ID of the connection in Nodeterm (e.g. 'Kepler').",
+              description: "The name or ID of the connection.",
             },
           },
           required: ["connectionName"],
@@ -125,13 +148,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "run_ssh_command",
-        description: "Executes a command on a remote host using an existing Nodeterm connection.",
+        description: "Executes a command on a remote host using an existing Nodeterm SSH connection.",
         inputSchema: {
           type: "object",
           properties: {
             connectionName: {
               type: "string",
-              description: "The name or ID of the connection in Nodeterm (e.g. 'Kepler').",
+              description: "The name or ID of the SSH connection.",
             },
             command: {
               type: "string",
@@ -139,6 +162,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["connectionName", "command"],
+        },
+      },
+      {
+        name: "get_local_terminal_info",
+        description: "Retrieves information about the local terminal configuration in Nodeterm.",
+        inputSchema: {
+          type: "object",
+          properties: {},
         },
       },
     ],
@@ -151,13 +182,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  if (name === "list_ssh_connections") {
-    const connections = getConnections();
+  if (name === "list_connections") {
+    const { type } = args || {};
+    let connections = getConnections();
+    
+    if (type) {
+      connections = connections.filter(c => c.type === type);
+    }
+
     const list = connections.map(c => ({
       name: c.name,
+      type: c.type,
       host: c.host,
       user: c.username,
-      port: c.port || 22,
       id: c.id
     }));
     
@@ -166,11 +203,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 
-  if (name === "get_ssh_connection_password") {
+  if (name === "get_connection_details") {
     const { connectionName } = args;
     const connections = getConnections();
     
-    // Find connection by Name or ID
     const conn = connections.find(c => 
       c.name === connectionName || 
       c.id === connectionName || 
@@ -184,14 +220,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
-    if (!conn.password) {
-      return {
-        content: [{ type: "text", text: `No password stored for connection '${connectionName}'.` }],
-      };
-    }
-
     return {
-      content: [{ type: "text", text: conn.password }],
+      content: [{ type: "text", text: JSON.stringify(conn, null, 2) }],
     };
   }
 
@@ -199,17 +229,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { connectionName, command } = args;
     const connections = getConnections();
     
-    // Find connection by Name or ID
     const conn = connections.find(c => 
-      c.name === connectionName || 
-      c.id === connectionName || 
-      (c.name && c.name.toLowerCase() === connectionName.toLowerCase())
+      (c.name === connectionName || c.id === connectionName || (c.name && c.name.toLowerCase() === connectionName.toLowerCase())) &&
+      c.type === "ssh"
     );
 
     if (!conn) {
       return {
         isError: true,
-        content: [{ type: "text", text: `Connection '${connectionName}' not found in Nodeterm.` }],
+        content: [{ type: "text", text: `SSH Connection '${connectionName}' not found in Nodeterm.` }],
       };
     }
 
@@ -231,6 +259,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   }
 
+  if (name === "get_local_terminal_info") {
+    const info = getLocalTerminalInfo();
+    if (!info) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: "Could not retrieve local terminal info." }],
+      };
+    }
+    return {
+      content: [{ type: "text", text: JSON.stringify(info, null, 2) }],
+    };
+  }
+
   throw new Error(`Tool not found: ${name}`);
 });
 
@@ -240,7 +281,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Nodeterm SSH MCP server running on stdio");
+  console.error("Nodeterm MCP server running on stdio");
 }
 
 main().catch((error) => {

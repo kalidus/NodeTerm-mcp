@@ -1,15 +1,15 @@
 {
-  "name": "nodeterm-ssh-mcp",
+  "name": "nodeterm-mcp",
   "version": "1.0.0",
-  "description": "Model Context Protocol (MCP) server to interact with Nodeterm SSH connections",
+  "description": "Model Context Protocol (MCP) server for Nodeterm integration (SSH and more)",
   "main": "index.js",
   "type": "module",
   "bin": {
-    "nodeterm-ssh-mcp": "./index.js"
+    "nodeterm-mcp": "./index.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tu-usuario/nodeterm-ssh-mcp.git"
+    "url": "git+https://github.com/tu-usuario/nodeterm-mcp.git"
   },
   "keywords": [
     "mcp",
