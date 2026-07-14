@@ -73,6 +73,14 @@ Copy your **API Key** from NodeTerm and set the following environment variables 
 | `list_connections` | Lists all connections available in Nodeterm (SSH, RDP, SFTP, etc.) excluding credentials. | `type` (optional: 'ssh', 'rdp', etc.) |
 | `get_connection_details` | Retrieves connection metadata for a specific connection (excluding passwords/keys). | `connectionName` (name or ID) |
 | `run_ssh_command` | Executes a command on a remote host using an existing Nodeterm SSH connection. NodeTerm manages the credentials and execution. | `connectionName`, `command` |
+| `list_sections` | Lists all sections/folders/groups available in NodeTerm (connections groups and document/note folders). | `type` (optional: 'connections', 'documents') |
+| `list_sessions` | Lists all configured connection sessions (SSH, RDP, SFTP, etc.) with group paths. | `type` (optional: 'ssh', 'rdp', etc.) |
+| `list_passwords` | Lists all password/credential manager entries securely. | `search` (optional search filter) |
+| `list_notes` | Lists all documents/notes stored in NodeTerm. | `search` (optional search filter) |
+| `create_password` | Creates a new credential, password, crypto wallet, or API key in NodeTerm. | `name` (required), `type`, `parentId`, `username`, `password`, `website`, `notes`, `api_key`, `wallet_seed` |
+| `edit_password` | Edits an existing credential, password, crypto wallet, or API key in NodeTerm. | `id` (required), `name`, `username`, `password`, `website`, `notes`, `api_key`, `wallet_seed` |
+| `create_note` | Creates a new document or note (or folder) in NodeTerm. | `name` (required), `content`, `type`, `parentId` |
+| `edit_note` | Edits an existing document or note title/content in NodeTerm. | `id` (required), `name`, `content` |
 
 ---
 
