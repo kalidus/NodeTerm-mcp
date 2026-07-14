@@ -95,6 +95,59 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["connectionName", "command"],
         },
       },
+      {
+        name: "list_sections",
+        description: "Lists all sections/folders/groups available in NodeTerm (connections groups and document/note folders).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["connections", "documents"],
+              description: "Optional filter for section type ('connections' or 'documents').",
+            },
+          },
+        },
+      },
+      {
+        name: "list_sessions",
+        description: "Lists all configured connection sessions (SSH, RDP, SFTP, etc.) with group paths.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              description: "Optional filter by connection type (e.g. 'ssh', 'rdp', 'sftp').",
+            },
+          },
+        },
+      },
+      {
+        name: "list_passwords",
+        description: "Lists all password/credential manager entries securely.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            search: {
+              type: "string",
+              description: "Optional search term to filter credentials by name, username or website.",
+            },
+          },
+        },
+      },
+      {
+        name: "list_notes",
+        description: "Lists all documents/notes stored in NodeTerm.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            search: {
+              type: "string",
+              description: "Optional search term to filter notes by title.",
+            },
+          },
+        },
+      },
     ],
   };
 });
@@ -172,6 +225,79 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: `Output:\n${result.stdout}${result.stderr ? "\nErrors:\n" + result.stderr : ""}\nExit Code: ${result.exitCode}`,
           },
         ],
+      };
+    }
+
+    if (name === "list_sections") {
+      const { type } = args || {};
+      let sections = [];
+
+      if (!type || type === "connections") {
+        const connData = await apiRequest("/api/connections");
+        const connFolders = (connData.connections || [])
+          .filter(c => c.isFolder)
+          .map(c => ({ id: c.id, name: c.name, type: "connections", group: c.group }));
+        sections = sections.concat(connFolders);
+      }
+
+      if (!type || type === "documents") {
+        const docData = await apiRequest("/api/documents");
+        const docFolders = (docData.documents || [])
+          .filter(d => d.isFolder)
+          .map(d => ({ id: d.id, name: d.name, type: "documents", path: d.path }));
+        sections = sections.concat(docFolders);
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(sections, null, 2) }],
+      };
+    }
+
+    if (name === "list_sessions") {
+      const { type } = args || {};
+      const data = await apiRequest("/api/connections");
+      let sessions = (data.connections || []).filter(c => !c.isFolder);
+
+      if (type) {
+        sessions = sessions.filter(s => s.type === type);
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(sessions, null, 2) }],
+      };
+    }
+
+    if (name === "list_passwords") {
+      const { search } = args || {};
+      const data = await apiRequest("/api/passwords");
+      let passwords = (data.passwords || []).filter(p => !p.isFolder);
+
+      if (search) {
+        const lowerSearch = search.toLowerCase();
+        passwords = passwords.filter(p => 
+          (p.name && p.name.toLowerCase().includes(lowerSearch)) ||
+          (p.username && p.username.toLowerCase().includes(lowerSearch)) ||
+          (p.website && p.website.toLowerCase().includes(lowerSearch))
+        );
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(passwords, null, 2) }],
+      };
+    }
+
+    if (name === "list_notes") {
+      const { search } = args || {};
+      const data = await apiRequest("/api/documents");
+      let notes = (data.documents || []).filter(d => !d.isFolder);
+
+      if (search) {
+        const lowerSearch = search.toLowerCase();
+        notes = notes.filter(n => n.name && n.name.toLowerCase().includes(lowerSearch));
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(notes, null, 2) }],
       };
     }
   } catch (error) {
