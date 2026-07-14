@@ -1,7 +1,7 @@
 {
   "name": "nodeterm-mcp",
-  "version": "1.0.0",
-  "description": "Model Context Protocol (MCP) server for Nodeterm integration (SSH and more)",
+  "version": "1.1.0",
+  "description": "Model Context Protocol (MCP) server for Nodeterm integration (secure local API)",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tu-usuario/nodeterm-mcp.git"
+    "url": "git+https://github.com/kalidus/NodeTerm-mcp.git"
   },
   "keywords": [
     "mcp",
@@ -21,7 +21,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.1",
-    "ssh2": "^1.17.0"
+    "@modelcontextprotocol/sdk": "^1.0.1"
   }
 }
