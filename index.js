@@ -148,6 +148,78 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: "create_password",
+        description: "Creates a new credential, password, crypto wallet, or API key in NodeTerm.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "The name/label for the credential entry." },
+            type: {
+              type: "string",
+              enum: ["password", "crypto_wallet", "api_key", "secure_note", "password-folder"],
+              description: "The type of the credential entry. Defaults to 'password'.",
+            },
+            parentId: { type: "string", description: "Optional folder/parent ID to place the entry in." },
+            username: { type: "string", description: "The username." },
+            password: { type: "string", description: "The password." },
+            website: { type: "string", description: "The website URL." },
+            notes: { type: "string", description: "Secure notes associated with the entry." },
+            api_key: { type: "string", description: "The API key (if type is api_key)." },
+            wallet_seed: { type: "string", description: "The crypto wallet seed/mnemonic (if type is crypto_wallet)." },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "edit_password",
+        description: "Edits an existing credential, password, crypto wallet, or API key in NodeTerm.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "The unique ID of the credential entry to edit." },
+            name: { type: "string", description: "New name/label for the credential entry." },
+            username: { type: "string", description: "New username." },
+            password: { type: "string", description: "New password." },
+            website: { type: "string", description: "New website URL." },
+            notes: { type: "string", description: "New secure notes." },
+            api_key: { type: "string", description: "New API key." },
+            wallet_seed: { type: "string", description: "New crypto wallet seed." },
+          },
+          required: ["id"],
+        },
+      },
+      {
+        name: "create_note",
+        description: "Creates a new document or note (or folder) in NodeTerm.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "The title of the note or folder." },
+            content: { type: "string", description: "The body/content of the note (supports markdown/HTML)." },
+            type: {
+              type: "string",
+              enum: ["document", "document-folder"],
+              description: "The type of entry. Defaults to 'document'.",
+            },
+            parentId: { type: "string", description: "Optional folder/parent ID to place the note in." },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "edit_note",
+        description: "Edits an existing document or note title/content in NodeTerm.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "The unique ID of the note to edit." },
+            name: { type: "string", description: "New title for the note." },
+            content: { type: "string", description: "New content/body for the note (supports markdown/HTML)." },
+          },
+          required: ["id"],
+        },
+      },
     ],
   };
 });
@@ -298,6 +370,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return {
         content: [{ type: "text", text: JSON.stringify(notes, null, 2) }],
+      };
+    }
+
+    if (name === "create_password" || name === "edit_password") {
+      const result = await apiRequest("/api/passwords", {
+        method: "POST",
+        body: JSON.stringify(args),
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    if (name === "create_note" || name === "edit_note") {
+      const result = await apiRequest("/api/documents", {
+        method: "POST",
+        body: JSON.stringify(args),
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
     }
   } catch (error) {
