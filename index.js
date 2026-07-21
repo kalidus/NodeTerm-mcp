@@ -1,4 +1,6 @@
-#!/usr/bin/env node
+import fs from "fs";
+import path from "path";
+import os from "os";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -6,19 +8,35 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const API_KEY = process.env.NODETERM_API_KEY;
+function getApiKey() {
+  if (process.env.NODETERM_API_KEY) {
+    return process.env.NODETERM_API_KEY;
+  }
+  try {
+    const configPath = path.join(os.homedir(), "AppData", "Roaming", "nodeterm", "mcp-config.json");
+    if (fs.existsSync(configPath)) {
+      const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      if (parsed.apiKey) return parsed.apiKey;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return "";
+}
+
+const API_KEY = getApiKey();
 const PORT = process.env.NODETERM_PORT || "19800";
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 if (!API_KEY) {
-  console.error("Error: NODETERM_API_KEY environment variable is required.");
+  console.error("Error: NODETERM_API_KEY environment variable is required or must be present in AppData config.");
   process.exit(1);
 }
 
 const server = new Server(
   {
     name: "nodeterm-mcp",
-    version: "1.1.0",
+    version: "1.2.0",
   },
   {
     capabilities: {
@@ -45,6 +63,22 @@ async function apiRequest(endpoint, options = {}) {
   } catch (error) {
     throw new Error(`Failed to communicate with NodeTerm: ${error.message}`);
   }
+}
+
+// In-memory connection cache
+let connectionsCache = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 60000; // 60 seconds TTL
+
+async function getConnections(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && connectionsCache && (now - lastCacheTime < CACHE_TTL_MS)) {
+    return connectionsCache;
+  }
+  const data = await apiRequest("/api/connections");
+  connectionsCache = data.connections || [];
+  lastCacheTime = now;
+  return connectionsCache;
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -230,8 +264,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     if (name === "list_connections") {
       const { type } = args || {};
-      const data = await apiRequest("/api/connections");
-      let connections = data.connections || [];
+      let connections = await getConnections();
       
       if (type) {
         connections = connections.filter(c => c.type === type);
@@ -244,14 +277,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "get_connection_details") {
       const { connectionName } = args;
-      const data = await apiRequest("/api/connections");
-      const connections = data.connections || [];
+      let connections = await getConnections();
       
-      const conn = connections.find(c => 
+      let conn = connections.find(c => 
         c.name === connectionName || 
         c.id === connectionName || 
         (c.name && c.name.toLowerCase() === connectionName.toLowerCase())
       );
+
+      if (!conn) {
+        connections = await getConnections(true);
+        conn = connections.find(c => 
+          c.name === connectionName || 
+          c.id === connectionName || 
+          (c.name && c.name.toLowerCase() === connectionName.toLowerCase())
+        );
+      }
 
       if (!conn) {
         return {
@@ -267,13 +308,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "run_ssh_command") {
       const { connectionName, command } = args;
-      const data = await apiRequest("/api/connections");
-      const connections = data.connections || [];
+      let connections = await getConnections();
       
-      const conn = connections.find(c => 
+      let conn = connections.find(c => 
         (c.name === connectionName || c.id === connectionName || (c.name && c.name.toLowerCase() === connectionName.toLowerCase())) &&
         c.type === "ssh"
       );
+
+      if (!conn) {
+        connections = await getConnections(true);
+        conn = connections.find(c => 
+          (c.name === connectionName || c.id === connectionName || (c.name && c.name.toLowerCase() === connectionName.toLowerCase())) &&
+          c.type === "ssh"
+        );
+      }
 
       if (!conn) {
         return {
@@ -305,8 +353,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       let sections = [];
 
       if (!type || type === "connections") {
-        const connData = await apiRequest("/api/connections");
-        const connFolders = (connData.connections || [])
+        const connections = await getConnections();
+        const connFolders = connections
           .filter(c => c.isFolder)
           .map(c => ({ id: c.id, name: c.name, type: "connections", group: c.group }));
         sections = sections.concat(connFolders);
@@ -327,8 +375,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "list_sessions") {
       const { type } = args || {};
-      const data = await apiRequest("/api/connections");
-      let sessions = (data.connections || []).filter(c => !c.isFolder);
+      const connections = await getConnections();
+      let sessions = connections.filter(c => !c.isFolder);
 
       if (type) {
         sessions = sessions.filter(s => s.type === type);
