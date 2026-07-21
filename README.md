@@ -75,16 +75,32 @@ Copy your **API Key** from NodeTerm and set the following environment variables 
 | `run_ssh_command` | Executes a command on a remote host using an existing Nodeterm SSH connection. NodeTerm manages the credentials and execution. | `connectionName`, `command` |
 | `list_sections` | Lists all sections/folders/groups available in NodeTerm (connections groups and document/note folders). | `type` (optional: 'connections', 'documents') |
 | `list_sessions` | Lists all configured connection sessions (SSH, RDP, SFTP, etc.) with group paths. | `type` (optional: 'ssh', 'rdp', etc.) |
-| `list_passwords` | Lists all password/credential manager entries securely. | `search` (optional search filter) |
+| `list_passwords` | Lists password-manager entries as **metadata only** (id, name, type, path, username, website). Never returns secrets. | `search` (optional search filter) |
+| `inject_secret` | Types a saved secret into an open terminal **password prompt** by opaque reference. Requires `promptTicket` from `wait_terminal_pattern`. Secret never appears in the tool response. | `terminalId`, `source` (`connection`\|`keepass`), `promptTicket` (required), `id` (required for keepass; optional for connection), `field` (optional) |
 | `list_notes` | Lists all documents/notes stored in NodeTerm. | `search` (optional search filter) |
 | `create_password` | Creates a new credential, password, crypto wallet, or API key in NodeTerm. | `name` (required), `type`, `parentId`, `username`, `password`, `website`, `notes`, `api_key`, `wallet_seed` |
 | `edit_password` | Edits an existing credential, password, crypto wallet, or API key in NodeTerm. | `id` (required), `name`, `username`, `password`, `website`, `notes`, `api_key`, `wallet_seed` |
 | `create_note` | Creates a new document or note (or folder) in NodeTerm. | `name` (required), `content`, `type`, `parentId` |
 | `edit_note` | Edits an existing document or note title/content in NodeTerm. | `id` (required), `name`, `content` |
 
+### Secure secret injection (v1.4.0+)
+
+Required flow when `sudo` / `su` / `git` / `mysql -p` asks for a password:
+
+1. Run the privileged command **without** the password (`run_terminal_command` or `terminal_write` + Enter).
+2. `wait_terminal_pattern` for a password prompt; read `promptTicket` from the response (one-time, TTL 60s; only issued if the last agent command is allowlisted).
+3. `inject_secret` with `promptTicket` + `source=connection|keepass` + entry/connection `id`.
+4. Wait for the privileged shell prompt / pull result and continue.
+
+Hardening: no ticket => inject fails; ticket is single-use; command correlation + rate limit (5/min/terminal). NodeTerm resolves the secret inside the app; the agent never sees it. Fallback: unlock human input and let the user type the password in the tab.
+
+**Breaking changes:**
+- `list_passwords` returns metadata only (no secret fields).
+- `inject_secret` requires `promptTicket` from a prior `wait_terminal_pattern`.
+
 ---
 
-## 💻 Local Development
+## Local Development
 
 If you want to run the server from source:
 
