@@ -73,6 +73,16 @@ Copy your **API Key** from NodeTerm and set the following environment variables 
 | `list_connections` | Lists all connections available in Nodeterm (SSH, RDP, SFTP, etc.) excluding credentials. | `type` (optional: 'ssh', 'rdp', etc.) |
 | `get_connection_details` | Retrieves connection metadata for a specific connection (excluding passwords/keys). | `connectionName` (name or ID) |
 | `run_ssh_command` | Executes a command on a remote host using an existing Nodeterm SSH connection. NodeTerm manages the credentials and execution. | `connectionName`, `command` |
+| `list_open_terminals` | Lists all currently open terminal tabs/windows in NodeTerm. | None |
+| `list_open_sessions` | Alias/list of active sessions running in NodeTerm terminals. | None |
+| `open_terminal` | Opens a new terminal tab connected to a host/connection. | `connectionId` or `connectionName` |
+| `focus_terminal` | Focuses an existing open terminal tab in NodeTerm UI. | `terminalId` |
+| `lock_terminal_input` | Locks or unlocks user keyboard input in a specific terminal tab. | `terminalId`, `locked` (boolean) |
+| `run_terminal_command` | Executes a command inside an open interactive terminal tab. | `terminalId`, `command`, `timeoutMs`, `humanTyping`, `keepLocked` |
+| `terminal_write` | Writes raw keystrokes/data to an open terminal tab. | `terminalId`, `data`, `keys`, `humanTyping`, `keepLocked` |
+| `read_terminal_buffer` | Reads recent scrollback buffer content from an open terminal tab. | `terminalId`, `maxChars`, `maxLines`, `fromOffset` |
+| `wait_terminal_pattern` | Waits for a text or regex pattern to appear in an open terminal output. | `terminalId`, `pattern`, `regex`, `timeoutMs`, `keepLocked` |
+| `get_terminal_status` | Retrieves status and metadata for an open terminal. | `terminalId` |
 | `list_sections` | Lists all sections/folders/groups available in NodeTerm (connections groups and document/note folders). | `type` (optional: 'connections', 'documents') |
 | `list_sessions` | Lists all configured connection sessions (SSH, RDP, SFTP, etc.) with group paths. | `type` (optional: 'ssh', 'rdp', etc.) |
 | `list_passwords` | Lists password-manager entries as **metadata only** (id, name, type, path, username, website). Never returns secrets. | `search` (optional search filter) |
@@ -82,6 +92,10 @@ Copy your **API Key** from NodeTerm and set the following environment variables 
 | `edit_password` | Edits an existing credential, password, crypto wallet, or API key in NodeTerm. | `id` (required), `name`, `username`, `password`, `website`, `notes`, `api_key`, `wallet_seed` |
 | `create_note` | Creates a new document or note (or folder) in NodeTerm. | `name` (required), `content`, `type`, `parentId` |
 | `edit_note` | Edits an existing document or note title/content in NodeTerm. | `id` (required), `name`, `content` |
+| `list_recordings` | Lists session recordings stored by NodeTerm (metadata only). | `host`, `username`, `sessionName`, `from`, `to` |
+| `get_recording` | Gets full metadata for one session recording by `recordingId`. | `recordingId` |
+| `export_recording` | Exports the asciicast (`.cast`) of a recording to a local file. | `recordingId`, `exportPath` (optional) |
+| `recording_stats` | Returns aggregate stats for NodeTerm session recordings. | None |
 
 ### Secure secret injection (v1.4.0+)
 
